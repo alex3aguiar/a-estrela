@@ -1,0 +1,155 @@
+class MazeNode {
+  id: string
+  x: number;
+  y: number
+  status: NodeStatus
+  f: number = 0;
+  g: number = 0;
+  h: number = 0;
+  cost: number = 1;
+  visited: Boolean = false;
+  parent?: MazeNode;
+  constructor(x: number, y: number, status: NodeStatus) {
+    this.id = `x:${x},y:${y}`
+    this.x = x;
+    this.y = y;
+
+    this.status = status;
+  }
+}
+class Maze {
+  Rows: MazeNode[][] = [];
+  goal: MazeNode;
+  start: MazeNode;
+  constructor(height: number, length: number) {
+    for (var x = 0; x < height; x++) {
+      for (var y = 0; y < length; y++) {
+        const node = new MazeNode(x, y, getByProbability(30, NodeStatus.BLOCKED, NodeStatus.EMPTY));
+        this.addNode(node)
+      }
+    }
+    const nodeGoal = new MazeNode(getRandomItemSmallerThan(length), getRandomItemSmallerThan(height), NodeStatus.GOAL);
+    this.addNode(nodeGoal)
+    this.goal = nodeGoal
+
+    const nodeStart = new MazeNode(getRandomItemSmallerThan(length), getRandomItemSmallerThan(height), NodeStatus.START);
+    this.addNode(nodeStart)
+    this.start = nodeStart
+
+  }
+
+  getNeighborsOf(n: MazeNode): MazeNode[] {
+    const up = this.getNodeByCoordinates(n.x - 1, n.y)
+    const down = this.getNodeByCoordinates(n.x + 1, n.y)
+    const left = this.getNodeByCoordinates(n.x, n.y + 1)
+    const right = this.getNodeByCoordinates(n.x, n.y - 1)
+    return [...up, ...down, ...left, ...right]
+  }
+
+  getNodeByCoordinates(x: number, y: number) {
+    try {
+      return  this.Rows[x][y] ? [this.Rows[x][y]]: []
+    } catch (error) {
+      return []
+    }
+  }
+
+  addNode(node: MazeNode): void {
+    if (!this.Rows[node.x]) {
+      this.Rows[node.x] = []
+    }
+    this.Rows[node.x][node.y] = node;
+  }
+  getPath() {
+    let openList: MazeNode[] = [this.start]
+    let closeList: MazeNode[] = [];
+    while (openList.length != 0) {
+      var lowInd = 0;
+      for (var i = 0; i < openList.length; i++) {
+        if (openList[i].f < openList[lowInd].f) {
+          lowInd = i;
+        }
+      }
+      const current = openList[lowInd]
+      if (current.status === NodeStatus.GOAL) {
+        var curr = current;
+        var ret = [];
+        while (curr.parent) {
+          console.log(curr.id)
+          ret.push(curr);
+          curr = curr.parent;
+        }
+        return ret.reverse();
+      }
+      closeList.push(current);
+      openList = openList.filter(a => a.id !== current.id)
+      var gScore = current.g + 1;
+      let gScoreIsBest = false;
+      this.getNeighborsOf(current).forEach(neighbor => {
+        if (closeList.find(a => a.id === neighbor?.id) || neighbor.status === NodeStatus.BLOCKED ) {
+          return;
+        }
+        if (!openList.find(a => a.id === neighbor?.id)) {
+          gScoreIsBest = true;
+          neighbor.h = getManhatanDistance(this.goal, neighbor)
+          openList.push(neighbor)
+        } else if (gScore < neighbor?.g) {
+          gScoreIsBest = true;
+        }
+        if (gScoreIsBest) {
+          neighbor.parent = current;
+          neighbor.g = gScore;
+          neighbor.f = neighbor?.g + neighbor?.h;
+        }
+      })
+    }
+  }
+}
+
+
+
+const getByProbability = (p: number, item: any, alt: any, resolution = 100) => {
+  const hit = getRandomItemSmallerThan(resolution);
+  return hit <= p ? item : alt
+}
+
+const getRandomItemSmallerThan = (i: number) => {
+  return Math.floor(Math.random() * i);
+}
+
+
+
+enum NodeStatus {
+  EMPTY = "░",
+  BLOCKED = "■",
+  START = "⊙",
+  GOAL = "྾",
+  PATH = "\"",
+}
+
+
+
+const printMaze = (maze: Maze) => {
+  maze.Rows.forEach(element => {
+    console.log("|" + element.map(a => a.status).join('|') + "|")
+  });
+}
+const maze = new Maze(15, 15);
+
+maze.getPath()?.forEach(element => {
+  if (element.status === NodeStatus.EMPTY) {
+    element.status = NodeStatus.PATH
+  }
+});
+printMaze(maze)
+
+
+
+
+function getManhatanDistance(goal: MazeNode, neighbor: MazeNode): number {
+
+  var d1 = Math.abs(goal.x - neighbor?.x);
+  var d2 = Math.abs(goal.y - neighbor?.y);
+  return d1 + d2;
+}
+
